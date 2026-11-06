@@ -1,0 +1,3 @@
+export const title = "Choose and confirm recovery";
+export const state = (v) => ({ inspect: "Check interrupted operations", none: "Nothing to recover", choose: "Choose an operation", preview: "Recovery preview", cancelled: "Cancelled", recovered: "Original state restored", refused: "Journal changed; preview again" })[v.phase];
+export const step = (a) => ({ NoPending: "none found", SelectOnly: "select [exactly one pending]", NeedChoice: "ask [multiple pending]", SelectNamed: "choose an ID", Cancel: "decline", ChangeJournal: "journal changes", ChangeDefault: "default installation changes", Recover: "confirm [journal unchanged]", RefuseChanged: "refuse [journal changed]", Done: "finished" })[a] ?? a;

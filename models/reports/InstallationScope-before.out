@@ -1,0 +1,43 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first model checking with one worker. [Local machine details omitted.]
+Parsing file <model-check>/InstallationScope.tla
+Semantic processing of module InstallationScope
+Starting... (2026-11-06 12:44:49)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-06 12:44:49.
+Error: Invariant SameInstallation is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ phase = "ready"
+/\ redirected = FALSE
+/\ writes = FALSE
+/\ destination = "none"
+
+State 2: <Redirect line 6, col 13 to line 7, col 55 of module InstallationScope>
+/\ phase = "ready"
+/\ redirected = TRUE
+/\ writes = FALSE
+/\ destination = "none"
+
+State 3: <Preview line 8, col 12 to line 10, col 59 of module InstallationScope>
+/\ phase = "preview"
+/\ redirected = TRUE
+/\ writes = FALSE
+/\ destination = "none"
+
+State 4: <Confirm line 11, col 12 to line 12, col 59 of module InstallationScope>
+/\ phase = "confirmed"
+/\ redirected = TRUE
+/\ writes = FALSE
+/\ destination = "none"
+
+State 5: <Apply line 13, col 10 to line 18, col 32 of module InstallationScope>
+/\ phase = "applied"
+/\ redirected = TRUE
+/\ writes = TRUE
+/\ destination = "other"
+
+12 states generated, 10 distinct states found, 2 states left on queue.
+The depth of the complete state graph search is 5.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-11-06 12:44:49)

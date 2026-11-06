@@ -1,0 +1,3 @@
+export const title = "Keep changes inside the selected installation";
+export const state = (v) => ({ ready: "Inspect installation", preview: "Preview shown", confirmed: "Confirmed", refused: "Linked folder; change refused", cancelled: "Cancelled", applied: v.destination === "selected" ? "Selected installation changed" : "Other installation changed" })[v.phase];
+export const step = (action, from, to) => ({ Redirect: "game folder becomes a link", Preview: to.phase === "refused" ? "refuse [game folder is linked]" : "preview [game folders are normal]", Confirm: "confirm", Apply: to.phase === "refused" ? "refuse [folder redirected after preview]" : "apply [game folders still normal]", Cancel: "decline", Done: "finished" })[action] ?? action;

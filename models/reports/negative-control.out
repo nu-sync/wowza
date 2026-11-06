@@ -1,0 +1,65 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first model checking with one worker. [Local machine details omitted.]
+Parsing file <model-check>/PlanNegative.tla
+Parsing file <model-check>/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module PlanNegative
+Starting... (2026-11-06 12:44:51)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-06 12:44:51.
+Error: Invariant FreshInputsRequired is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ revision = 0
+/\ writtenRoot = "none"
+/\ authorized = FALSE
+/\ planRoot = "none"
+/\ phase = "ready"
+/\ selectedRoot = "A"
+/\ writes = FALSE
+/\ expectedRevision = 0
+
+State 2: <Preview line 11, col 12 to line 13, col 83 of module PlanNegative>
+/\ revision = 0
+/\ writtenRoot = "none"
+/\ authorized = FALSE
+/\ planRoot = "A"
+/\ phase = "preview"
+/\ selectedRoot = "A"
+/\ writes = FALSE
+/\ expectedRevision = 0
+
+State 3: <ChangeInputs line 14, col 17 to line 16, col 113 of module PlanNegative>
+/\ revision = 1
+/\ writtenRoot = "none"
+/\ authorized = FALSE
+/\ planRoot = "A"
+/\ phase = "preview"
+/\ selectedRoot = "A"
+/\ writes = FALSE
+/\ expectedRevision = 0
+
+State 4: <Confirm line 20, col 12 to line 21, col 99 of module PlanNegative>
+/\ revision = 1
+/\ writtenRoot = "none"
+/\ authorized = TRUE
+/\ planRoot = "A"
+/\ phase = "confirmed"
+/\ selectedRoot = "A"
+/\ writes = FALSE
+/\ expectedRevision = 0
+
+State 5: <Apply line 26, col 10 to line 28, col 88 of module PlanNegative>
+/\ revision = 1
+/\ writtenRoot = "A"
+/\ authorized = TRUE
+/\ planRoot = "A"
+/\ phase = "applied"
+/\ selectedRoot = "A"
+/\ writes = TRUE
+/\ expectedRevision = 0
+
+25 states generated, 19 distinct states found, 9 states left on queue.
+The depth of the complete state graph search is 5.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 5 and the 95th percentile is 5).
+Finished in 00s at (2026-11-06 12:44:51)

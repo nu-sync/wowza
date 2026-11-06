@@ -1,0 +1,3 @@
+export const title = "Preview and apply a package change";
+export const state = (v) => ({ ready: "Ready", preview: "Preview shown", confirmed: "Confirmed", cancelled: "Cancelled", preview_only: "Preview only", applied: "Change applied", rejected: "Inputs changed; preview again" })[v.phase];
+export const step = (action) => ({ Preview: "inspect the selected installation", ChangeInputs: "files change", ChangeSelection: "default installation changes", Confirm: "confirm or pass --yes", Cancel: "decline or close input", DryRun: "use --dry-run", Apply: "apply [inputs still match]", RejectStale: "refuse [inputs changed]", Done: "finished" })[action] ?? action;

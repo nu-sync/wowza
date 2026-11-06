@@ -1,0 +1,31 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first model checking with one worker. [Local machine details omitted.]
+Parsing file <model-check>/RecoveryPreflight.tla
+Semantic processing of module RecoveryPreflight
+Starting... (2026-11-06 12:44:50)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-06 12:44:50.
+Error: Invariant HonestPreview is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ changed = FALSE
+/\ phase = "ready"
+/\ acceptedInvalid = FALSE
+/\ writes = FALSE
+
+State 2: <ChangeFiles line 6, col 16 to line 7, col 62 of module RecoveryPreflight>
+/\ changed = TRUE
+/\ phase = "ready"
+/\ acceptedInvalid = FALSE
+/\ writes = FALSE
+
+State 3: <Preview line 8, col 12 to line 12, col 43 of module RecoveryPreflight>
+/\ changed = TRUE
+/\ phase = "preview"
+/\ acceptedInvalid = TRUE
+/\ writes = FALSE
+
+4 states generated, 4 distinct states found, 1 states left on queue.
+The depth of the complete state graph search is 3.
+The average outdegree of the complete state graph is 2 (minimum is 2, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-11-06 12:44:50)

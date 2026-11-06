@@ -1,0 +1,17 @@
+---
+title: "Keep changes inside the selected installation"
+---
+stateDiagram-v2
+  s0: Inspect installation
+  s1: Preview shown
+  s2: Cancelled
+  s3: Confirmed
+  s4: Linked folder#59; change refused
+  s5: Selected installation changed
+  [*] --> s0
+  s0 --> s1: preview [game folders are normal]
+  s1 --> s2: decline
+  s1 --> s3: confirm
+  s0 --> s4: refuse [game folder is linked]
+  s3 --> s5: apply [game folders still normal]
+  s3 --> s4: refuse [folder redirected after preview]

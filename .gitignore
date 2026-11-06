@@ -1,0 +1,6 @@
+/target
+/.env
+/.env.*
+/.wowza/
+/config.json
+/local/

@@ -1,0 +1,15 @@
+---
+title: "Validate recovery before approval and execution"
+---
+stateDiagram-v2
+  s0: Inspect recovery files
+  s1: Recovery preview ready
+  s2: Cancelled
+  s3: Original files restored
+  s4: Changed files#59; recovery refused
+  [*] --> s0
+  s0 --> s1: preview [files verified]
+  s1 --> s2: decline
+  s1 --> s3: confirm [files still match]
+  s0 --> s4: refuse [files already changed]
+  s1 --> s4: refuse [files changed after preview]

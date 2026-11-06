@@ -1,0 +1,19 @@
+---
+title: "Choose and confirm recovery"
+---
+stateDiagram-v2
+  s0: Check interrupted operations
+  s1: Choose an operation
+  s2: Nothing to recover
+  s3: Recovery preview
+  s4: Cancelled
+  s5: Original state restored
+  s6: Journal changed#59; preview again
+  [*] --> s0
+  s0 --> s1: ask [multiple pending]
+  s0 --> s3: select [exactly one pending]
+  s0 --> s2: none found
+  s1 --> s3: choose an ID
+  s3 --> s4: decline
+  s3 --> s5: confirm [journal unchanged]
+  s3 --> s6: refuse [journal changed]

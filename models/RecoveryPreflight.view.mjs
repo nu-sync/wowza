@@ -1,0 +1,3 @@
+export const title = "Validate recovery before approval and execution";
+export const state = (v) => ({ ready: "Inspect recovery files", preview: "Recovery preview ready", refused: "Changed files; recovery refused", restored: "Original files restored", cancelled: "Cancelled" })[v.phase];
+export const step = (action, from, to) => ({ ChangeFiles: "recovery files change", Preview: to.phase === "refused" ? "refuse [files already changed]" : "preview [files verified]", Confirm: to.phase === "refused" ? "refuse [files changed after preview]" : "confirm [files still match]", Cancel: "decline", Done: "finished" })[action] ?? action;

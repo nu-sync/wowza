@@ -1,0 +1,18 @@
+---
+title: "Preview and apply a package change"
+---
+stateDiagram-v2
+  s0: Ready
+  s1: Preview shown
+  s2: Cancelled
+  s3: Preview only
+  s4: Confirmed
+  s5: Change applied
+  s6: Inputs changed#59; preview again
+  [*] --> s0
+  s0 --> s1: inspect the selected installation
+  s1 --> s2: decline or close input
+  s1 --> s3: use --dry-run
+  s1 --> s4: confirm or pass --yes
+  s4 --> s5: apply [inputs still match]
+  s4 --> s6: refuse [inputs changed]

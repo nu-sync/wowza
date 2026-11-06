@@ -1,0 +1,41 @@
+name: Windows checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Format, lint, test, and build
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      RUSTUP_TOOLCHAIN: stable
+      CARGO_TERM_COLOR: always
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal --component clippy,rustfmt
+      - name: Check repository
+        run: .\scripts\check.ps1
+      - name: Package Windows build
+        run: .\scripts\package-release.ps1
+      - name: Upload Windows test build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wowza-windows-x86_64
+          path: |
+            target/dist/*.zip
+            target/dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
