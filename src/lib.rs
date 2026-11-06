@@ -64,7 +64,7 @@ pub fn scan(root: &Path) -> io::Result<Vec<Addon>> {
             tocs,
         });
     }
-    addons.sort_by(|a, b| a.folder.to_lowercase().cmp(&b.folder.to_lowercase()));
+    addons.sort_by_key(|a| a.folder.to_lowercase());
     Ok(addons)
 }
 
