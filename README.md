@@ -26,11 +26,17 @@ The default view shows packages, problems, and suggested next steps. Existing ad
 
 ## Find and install an add-on
 
-```powershell
-wowza search "Leatrix"
-```
+Examples of popular add-ons with Forever releases listed on CurseForge (checked 2026-11-06):
 
-This opens CurseForge in your browser. Download a ZIP and verify that its release targets Forever. Wowza does not download releases or establish compatibility. Preview and install it:
+| Add-on | Useful for | Find it with Wowza |
+| --- | --- | --- |
+| [Questie](https://www.curseforge.com/wow/addons/questie) | Quest guidance | `wowza search "Questie"` |
+| [Leatrix Plus](https://www.curseforge.com/wow/addons/leatrix-plus) | Quality-of-life interface tweaks | `wowza search "Leatrix Plus"` |
+| [Leatrix Maps](https://www.curseforge.com/wow/addons/leatrix-maps) | Map enhancements | `wowza search "Leatrix Maps"` |
+| [Bagnon](https://www.curseforge.com/wow/addons/bagnon) | Combined bag and bank displays | `wowza search "Bagnon"` |
+| [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | Auction-house tools and item values | `wowza search "Auctionator"` |
+
+These commands open CurseForge in your browser. Download a ZIP and verify that its release targets Forever. Wowza does not download releases or establish compatibility. Preview and install it, replacing the example path with your downloaded ZIP:
 
 ```powershell
 wowza install 'C:\Downloads\addon.zip' --dry-run
