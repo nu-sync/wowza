@@ -1,6 +1,9 @@
+mod common;
+
 use std::{
+    fs,
     io::Write,
-    process::{Command, Stdio},
+    process::{Command, Output, Stdio},
 };
 use url::Url;
 
@@ -56,4 +59,153 @@ fn cli_rejects_blank_search() {
         .unwrap();
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("Enter a search term"));
+}
+
+fn machine_output(args: &[&str]) -> Output {
+    let root = tempfile::tempdir().unwrap();
+    let config = root.path().join("config.json");
+    fs::write(&config, "not valid configuration JSON").unwrap();
+    let before = common::snapshot(root.path());
+    let output = Command::new(env!("CARGO_BIN_EXE_wowza"))
+        .args(args)
+        .env_remove("WOWZA_FOREVER_PATH")
+        .env("WOWZA_CONFIG_FILE", config)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(common::snapshot(root.path()), before);
+    output
+}
+
+#[test]
+fn search_url_mode_prints_only_the_encoded_url_without_configuration() {
+    for options in [vec![], vec!["--yes"]] {
+        let mut args = vec!["search", "  bags & maps + 雪  ", "--url"];
+        args.extend(options);
+        let output = machine_output(&args);
+        assert!(output.stderr.is_empty());
+        assert_eq!(
+            common::success(output),
+            "https://www.curseforge.com/wow/search?class=addons&page=1&pageSize=20&sortBy=relevancy&search=bags+%26+maps+%2B+%E9%9B%AA&gameVersionTypeId=88568\n"
+        );
+    }
+}
+
+#[test]
+fn search_json_is_a_url_handoff_even_with_yes_or_url_flags() {
+    for options in [vec![], vec!["--url"], vec!["--yes"], vec!["--url", "--yes"]] {
+        let mut args = vec!["--json", "search", "  bags & maps + 雪  "];
+        args.extend(options);
+        let output = machine_output(&args);
+        assert!(output.stderr.is_empty());
+        let document: serde_json::Value = serde_json::from_str(&common::success(output)).unwrap();
+        assert_eq!(
+            document,
+            serde_json::json!({
+                "kind": "url_handoff",
+                "action": "search",
+                "query": "bags & maps + 雪",
+                "url": "https://www.curseforge.com/wow/search?class=addons&page=1&pageSize=20&sortBy=relevancy&search=bags+%26+maps+%2B+%E9%9B%AA&gameVersionTypeId=88568",
+                "content_fetched": false
+            })
+        );
+    }
+}
+
+#[test]
+fn continue_machine_modes_return_validated_urls_without_prompts() {
+    let input = "https://WWW.CURSEFORGE.COM/wow/addons/questie";
+    let normalized = "https://www.curseforge.com/wow/addons/questie";
+    for options in [vec![], vec!["--yes"]] {
+        let mut args = vec!["continue", input, "--url"];
+        args.extend(options);
+        let output = machine_output(&args);
+        assert!(output.stderr.is_empty());
+        assert_eq!(common::success(output), format!("{normalized}\n"));
+    }
+
+    for options in [vec![], vec!["--url"], vec!["--yes"], vec!["--url", "--yes"]] {
+        let mut args = vec!["continue", input, "--json"];
+        args.extend(options);
+        let output = machine_output(&args);
+        assert!(output.stderr.is_empty());
+        let document: serde_json::Value = serde_json::from_str(&common::success(output)).unwrap();
+        assert_eq!(
+            document,
+            serde_json::json!({
+                "kind": "url_handoff",
+                "action": "continue",
+                "url": normalized,
+                "content_fetched": false
+            })
+        );
+    }
+}
+
+#[test]
+fn machine_handoffs_do_not_resolve_or_create_an_explicit_installation() {
+    let root = tempfile::tempdir().unwrap();
+    let missing = root.path().join("missing-game");
+    let config = root.path().join("config.json");
+    fs::write(&config, "invalid settings").unwrap();
+    let before = common::snapshot(root.path());
+    for (command, input) in [
+        ("search", "Questie"),
+        ("continue", "https://www.curseforge.com/wow/addons/questie"),
+    ] {
+        for mode in ["--url", "--json"] {
+            let output = Command::new(env!("CARGO_BIN_EXE_wowza"))
+                .arg("--path")
+                .arg(&missing)
+                .args([command, input, mode])
+                .env("WOWZA_FOREVER_PATH", &missing)
+                .env("WOWZA_CONFIG_FILE", &config)
+                .stdin(Stdio::null())
+                .output()
+                .unwrap();
+            common::success(output);
+            assert_eq!(common::snapshot(root.path()), before);
+        }
+    }
+}
+
+#[test]
+fn machine_handoffs_reject_invalid_inputs_without_output() {
+    for mode in ["--url", "--json"] {
+        let output = machine_output(&["search", " \t ", mode]);
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Enter a search term"));
+
+        for input in [
+            "https://example.com/wow/addons/questie",
+            "http://www.curseforge.com/wow/addons/questie",
+            "https://user@www.curseforge.com/wow/addons/questie",
+            "https://www.curseforge.com/minecraft/mc-mods/example",
+        ] {
+            let output = machine_output(&["continue", input, mode]);
+            assert!(!output.status.success());
+            assert!(output.stdout.is_empty());
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("Expected an HTTPS CurseForge")
+            );
+        }
+    }
+}
+
+#[test]
+fn dry_run_is_not_a_browser_or_machine_handoff_mode() {
+    for (command, input) in [
+        ("search", "Questie"),
+        ("continue", "https://www.curseforge.com/wow/addons/questie"),
+    ] {
+        for options in [vec![], vec!["--url"], vec!["--json"]] {
+            let mut args = vec![command, input, "--dry-run"];
+            args.extend(options);
+            let output = machine_output(&args);
+            assert!(!output.status.success());
+            assert!(output.stdout.is_empty());
+            assert!(String::from_utf8_lossy(&output.stderr).contains("--dry-run"));
+        }
+    }
 }

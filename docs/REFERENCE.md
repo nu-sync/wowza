@@ -40,11 +40,37 @@ Settings live at `%APPDATA%\Wowza\config.json`. `WOWZA_CONFIG_FILE` selects anot
 
 ## Inspection and browser handoffs
 
-`wowza` and `wowza status` show packages, problems, and suggested actions. `status --verbose` includes TOC metadata. Consistent ownership records group several folders into one package; conflicting records remain separate.
+`wowza` shows a short getting-started guide without reading configuration or scanning the installation. `wowza --help` lists all commands and options.
+
+`wowza status` shows packages, problems, and suggested actions. `status --verbose` includes TOC metadata. Consistent ownership records group several folders into one package; conflicting records remain separate. For existing scripts, supplying only global options (`--path`, `--json`, or `--dry-run`) still runs status; prefer an explicit `status` command in new scripts.
 
 `list` and `scan` retain their folder-oriented display. `doctor` reports missing TOCs, changed packages, and pending operations. These commands share one inspection result and do not modify the installation. TOCs are read as UTF-8 with replacement for invalid bytes.
 
 `search "Leatrix"` opens CurseForge search in the default browser after confirmation. Results appear on the website; check that Forever is selected and verify the release. `continue <url>` opens an HTTPS CurseForge WoW add-on project or release page. Both accept `--yes` to skip Wowza's prompt. Opening a page does not install an add-on or select a game installation.
+
+### Keyless agent handoffs
+
+```powershell
+wowza search "Questie" --url
+wowza search "Questie" --json
+wowza continue https://www.curseforge.com/wow/addons/questie --url
+```
+
+`--url` prints one validated URL. `--json` returns a structured handoff, for example:
+
+```json
+{
+  "kind": "url_handoff",
+  "action": "search",
+  "query": "Questie",
+  "url": "https://www.curseforge.com/wow/search?class=addons&page=1&pageSize=20&sortBy=relevancy&search=Questie&gameVersionTypeId=88568",
+  "content_fetched": false
+}
+```
+
+For `continue --json`, `action` is `continue` and `query` is omitted. Both modes work without a game installation or API key and never fetch pages, prompt, or open a browser, including when `--yes` is supplied. If both `--url` and `--json` are present, JSON takes precedence. Invalid queries or URLs fail with a nonzero exit status and an error on stderr.
+
+An agent passes `url` to its own browsing tool and reads the returned content. This output is a link, not search results or a compatibility claim. Page access can still be blocked or require user interaction; the browsing tool must report that rather than invent results. `--dry-run` is not supported for these commands; use `--url` or `--json` instead.
 
 ## Package changes
 
@@ -63,11 +89,23 @@ ZIPs must contain a top-level TOC in every add-on folder. Validation rejects uns
 
 Updates require exactly the existing folder names. Verify independently that the ZIP is from the same project and targets Forever. Wowza does not establish project identity, release compatibility, or whether a replacement is newer. Changed, missing, or extra files prevent updates and removals. Saved settings in `WTF` are preserved.
 
+## Terminal colors
+
+Interactive output uses cyan headings, magenta package names and suggested commands, green success messages, yellow warnings, and red errors. Text labels carry the same meaning without color. Help uses the same palette.
+
+Colors adapt to the terminal and are disabled when output is redirected. Set `NO_COLOR=1` or `CLICOLOR=0` for plain text, or `CLICOLOR_FORCE=1` to force colors, including in redirected output. `NO_COLOR` takes precedence. JSON and URL-only output remain plain even when colors are forced.
+
+```powershell
+$env:NO_COLOR = '1'
+wowza status
+Remove-Item Env:NO_COLOR
+```
+
 ## Previews and automation
 
 Install, update, remove, and recover prompt by default. `--dry-run` previews without prompting, locking, staging, or writing installation files. Execution rechecks the preview's archive, package, or journal under the installation lock and refuses changed inputs.
 
-`--json` supports inspection, pending operations, configuration, previews, and operation results. JSON package mutations require `--yes`; use `--dry-run --json` to obtain a read-only preview. Errors go to stderr with a nonzero exit status. Browser handoffs do not support `--json` or `--dry-run`.
+`--json` supports inspection, pending operations, configuration, previews, operation results, and the keyless URL handoffs above. JSON package mutations require `--yes`; use `--dry-run --json` to obtain a read-only preview. Errors go to stderr with a nonzero exit status.
 
 ## Recovery and limits
 

@@ -18,11 +18,11 @@ Use your game installation root, not its `Interface\AddOns` folder. Wowza rememb
 ## See what is installed
 
 ```powershell
-wowza
+wowza status
 wowza status --verbose
 ```
 
-The default view shows packages, problems, and suggested next steps. Existing add-ons installed outside Wowza remain unmanaged; there is no import command yet.
+`wowza` shows a quick-start guide without reading the installation. `wowza status` shows packages, problems, and suggested next steps. Existing add-ons installed outside Wowza remain unmanaged; there is no import command yet.
 
 ## Find and install an add-on
 
@@ -36,7 +36,9 @@ Examples of popular add-ons with Forever releases listed on CurseForge (checked 
 | [Bagnon](https://www.curseforge.com/wow/addons/bagnon) | Combined bag and bank displays | `wowza search "Bagnon"` |
 | [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | Auction-house tools and item values | `wowza search "Auctionator"` |
 
-These commands open CurseForge in your browser. Download a ZIP and verify that its release targets Forever. Wowza does not download releases or establish compatibility. Preview and install it, replacing the example path with your downloaded ZIP:
+These commands open CurseForge in your browser. For agents, `wowza search "Questie" --url` prints only the link; `--json` returns a structured URL handoff. The agent retrieves page content with its own browsing tools.
+
+Download a ZIP and verify that its release targets Forever. Wowza does not download releases or establish compatibility. Preview and install it, replacing the example path with your downloaded ZIP:
 
 ```powershell
 wowza install 'C:\Downloads\addon.zip' --dry-run

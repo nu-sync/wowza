@@ -47,7 +47,9 @@ This option checks the same models, then writes charts and reports under `<outpu
 
 The authoritative implementation is `src/manage.rs` and the CLI in `src/cli.rs`. These finite models abstract individual folder moves as atomic and assume exclusive Wowza access, successful filesystem operations except at the modeled interruption points, and no external changes. They do not prove the Rust implementation, power-loss durability, game behavior, archive authenticity, or progress when conflicts persist. `scan`, `list`, `doctor`, and `inspect-archive` are read-only observations rather than persistent state transitions.
 
-`Lifecycle.tla` models install, remove, update and recovery for one folder. `Update.tla` explores two folders and recovery between moves. `Handoff.tla` models URL rejection, confirmation (including explicit `--yes`), cancellation, and opening/failure; opening is not installation. TLC found no invariant violations: 11, 16 and 7 distinct states respectively. Each run used one worker and exhausted the model's reachable state space, not the real system's state space.
+`Lifecycle.tla` models install, remove, update and recovery for one folder. `Update.tla` explores two folders and recovery between moves. `Handoff.tla` models URL rejection and two output modes: browser confirmation, cancellation and opening/failure; or validated URL output for `--url`/`--json`. In browser mode, explicit `--yes` confirms without prompting. URL mode bypasses both prompting and browser opening regardless of `--yes`. Opening a page or returning a URL is not installation.
+
+TLC found no invariant violations: 11, 16 and 15 distinct states respectively. The [handoff report](reports/Handoff.out) records 23 generated states and a complete search depth of 5. Its six invariants are `OpenRequiresConsent`, `ReportTruth`, `NoOpenIfCancelled`, `NoPromptInURLMode`, `NoBrowserInURLMode`, and `EffectsRequireValidation`. Each run used one worker and exhausted the model's reachable state space, not the real system's state space.
 
 ```mermaid
 stateDiagram-v2
@@ -88,13 +90,16 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> Input
     Input --> Invalid: invalid URL
-    Input --> Preview: valid URL
-    Preview --> Cancelled: decline
-    Preview --> Opening: confirm or use --yes
+    Input --> Ready: valid URL
+    Ready --> Returned: --url or --json, including with --yes
+    Ready --> Prompting: browser mode without --yes
+    Ready --> Opening: browser mode with --yes
+    Prompting --> Cancelled: decline
+    Prompting --> Opening: confirm
     Opening --> Opened: browser accepts handoff
     Opening --> Failed: browser reports error
 ```
 
-The charts are manually transcribed from the models: terminal self-loops and repeated per-folder transitions are condensed. In the actual implementation confirmation precedes staging, and the journal is published after staging. The model's ready states abstract that preparation. Tests in `src/manage.rs` exercise all nine combinations of two-folder update positions, including a failed recovery followed by retry; `tests/archive_cli.rs` exercises the public CLI and backup. The handoff model assumes the operating system reports opening correctly; it cannot establish that a browser displayed the page or an add-on was installed.
+The charts are manually transcribed from the models: terminal self-loops and repeated per-folder transitions are condensed. In the actual implementation confirmation precedes staging, and the journal is published after staging. The folder models' ready states abstract that preparation. Tests in `src/manage.rs` exercise all nine combinations of two-folder update positions, including a failed recovery followed by retry; `tests/archive_cli.rs` exercises the public CLI and backup. The handoff model assumes validation and operating-system opening reports are correct; it cannot establish that a browser displayed the page or an add-on was installed. It treats `--url` and `--json` as one mode, abstracts URL contents and output writes, and contains no network retrieval. A returned URL does not represent fetched web content.
 
 The runner described above includes these three models. The original folder/handoff results used TLC directly; their charts above are manually transcribed. The checked-in preview and recovery-selection reports used the statechart generator through the optional Windows-compatible worker route described above.

@@ -1,5 +1,29 @@
 # Development decisions
 
+## 2026-11-06: Fast startup guidance
+
+Bare `wowza` previously performed the same installation inspection as `status`, unlike `wowmc`, which prints a getting-started guide. It now prints a short guide before resolving configuration or reading installation files. `wowza status` retains the full inspection, including managed-file integrity checks. Option-only invocations with `--path`, `--json`, or `--dry-run` keep their existing status behavior. Explicit help and version already returned before inspection and remain unchanged.
+
+On Windows 11 (10.0.26300), Rust 1.91.1 release builds were measured against the configured installation with 45 add-on folders and 61 TOCs. Two passes of 20 alternating rounds each compared the original release, the final installed executable, and installed `wowmc`. Each pass used three warmups per executable. Pooled results include all samples, including shared system outliers:
+
+| Invocation | Original Wowza median (range), ms | Installed Wowza median (range), ms | Wowmc median (range), ms |
+| --- | ---: | ---: | ---: |
+| No arguments | 202.83 (193.89–556.68) | 25.69 (23.46–123.39) | 23.14 (21.53–119.57) |
+| `--help` | 26.91 (21.92–44.75) | 28.67 (22.61–53.55) | 25.21 (20.75–41.12) |
+
+Bare invocation is 7.9 times faster at the median (87% less latency) because it now shows guidance instead of inspecting the installation. This does not speed up inspection itself. Explicit help shows no measurable improvement; its timings moved together across executables between passes. All commands succeeded with stable output, and redirected `status` output was identical before and after. The installed executable matched the release build and retained after snapshot (SHA-256 `8E0FE394118A901091A63AD083D38A12CFC1AA71DAC46099AF0BCD1A23851D32`); the original snapshot was `3BE1606A3D174D9FB8CCB9E38FE6154E0479A60BB3BA4182D49EC1B77E57241D`.
+
+A separate 20-run warm-process profile measured configuration resolution at a 0.49 ms median, TOC scanning at 84.65 ms, and full installation inspection, including that scan, at 150.71 ms. These diagnostic timings locate the cost in installation reads; they are not additive or directly interchangeable with process timings. The remaining startup time is comparable to the existing help path and `wowmc`. Raw runs, summary, binaries, and profiling evidence remain locally under ignored `target/latency/`, including `final-summary.json`, `{noargs,help}-installed-{1,2}.json`, `profile.rs`, and `profile.csv`.
+
+The regression test failed on the original executable because bare invocation tried to read malformed configuration. The fixed CLI shows guidance with both unavailable and valid installations; explicit status still validates its inputs and produces the expected inspection. Tests also cover help forms, version, option-only inspection, and unchanged temporary-installation snapshots. `scripts/check.ps1` passed formatting, all-feature Clippy, 46 default tests, 51 interruption-enabled tests, and the release build. The installed command was updated with `cargo install --locked --path . --force`. No lifecycle transition changed, so the lifecycle models did not need changes for this work.
+
+`scripts/measure-startup.ps1` measures process start through exit and output drain, excluding terminal rendering. It alternates executable order, warms each executable three times, verifies successful and stable output, and saves raw samples, executable hashes, and summary statistics. For example, save an original release executable before editing, then compare it with the final release and `wowmc`:
+
+```powershell
+.\scripts\measure-startup.ps1 -Executable .\target\latency\wowza-before.exe,.\target\release\wowza.exe,wowmc -Name before,after,wowmc
+.\scripts\measure-startup.ps1 -Executable .\target\latency\wowza-before.exe,.\target\release\wowza.exe,wowmc -Name before,after,wowmc -ArgumentList '--help' -OutputPath .\target\latency\help.json
+```
+
 ## 2026-11-06: Public repository preparation
 
 The public destination is `nu-sync/wowza`, with MIT selected by the maintainer. README labels the Windows CLI experimental and keeps source setup and core flows brief. Cargo declares Rust 1.91, the license, and repository URL. GitHub Windows checks run the locked formatting/lint/test/build workflow, then produce an executable ZIP and SHA-256 checksums as temporary test-build artifacts. Publishing a player-facing prerelease remains a separate step described in `docs/PUBLISHING.md`.

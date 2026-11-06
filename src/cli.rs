@@ -1,10 +1,31 @@
-use clap::{Parser, Subcommand};
+use anstream::{eprintln, println};
+use clap::{
+    Parser, Subcommand,
+    builder::styling::{AnsiColor, Style, Styles},
+};
 use std::{io, path::PathBuf};
 use wowza::{config, manage};
+
+const HEADING: Style = AnsiColor::Cyan.on_default().bold();
+const ACCENT: Style = AnsiColor::Magenta.on_default().bold();
+const SUCCESS: Style = AnsiColor::Green.on_default();
+const WARNING: Style = AnsiColor::Yellow.on_default();
+const ERROR: Style = AnsiColor::Red.on_default().bold();
+const MUTED: Style = Style::new().dimmed();
+
+const HELP_STYLES: Styles = Styles::styled()
+    .header(HEADING)
+    .usage(HEADING)
+    .literal(ACCENT)
+    .placeholder(AnsiColor::Cyan.on_default())
+    .valid(SUCCESS)
+    .invalid(WARNING)
+    .error(ERROR);
 
 #[derive(Parser)]
 #[command(
     version,
+    styles = HELP_STYLES,
     about = "Inspect and safely manage WoW Forever add-on packages"
 )]
 struct Cli {
@@ -23,7 +44,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Show packages, problems, and the next safe action (the default command)
+    /// Show packages, problems, and the next safe action
     Status {
         #[arg(long, short)]
         verbose: bool,
@@ -68,26 +89,55 @@ enum Command {
         #[arg(long, short = 'y')]
         yes: bool,
     },
-    /// Search CurseForge in a browser with the Forever filter
+    /// Search CurseForge with the Forever filter, or return its URL
     Search {
         query: String,
+        /// Print only the URL without prompting or opening a browser
+        #[arg(long = "url")]
+        url_only: bool,
         #[arg(long, short = 'y')]
         yes: bool,
     },
-    /// Open a CurseForge project or release page after confirmation
+    /// Open a CurseForge project or release page, or return its validated URL
     Continue {
         url: String,
+        /// Print only the URL without prompting or opening a browser
+        #[arg(long = "url")]
+        url_only: bool,
         #[arg(long, short = 'y')]
         yes: bool,
     },
 }
 
 fn json(value: &impl serde::Serialize) -> Result<(), String> {
-    println!(
+    std::println!(
         "{}",
         serde_json::to_string_pretty(value).map_err(|e| e.to_string())?
     );
     Ok(())
+}
+
+fn print_handoff(
+    url: &url::Url,
+    action: &str,
+    query: Option<&str>,
+    structured: bool,
+) -> Result<(), String> {
+    if structured {
+        let mut handoff = serde_json::json!({
+            "kind": "url_handoff",
+            "action": action,
+            "url": url.as_str(),
+            "content_fetched": false,
+        });
+        if let Some(query) = query {
+            handoff["query"] = query.trim().into();
+        }
+        json(&handoff)
+    } else {
+        std::println!("{url}");
+        Ok(())
+    }
 }
 
 fn apply(
@@ -107,33 +157,33 @@ fn apply(
     }
     if !structured {
         println!(
-            "Installation: {}\nAction: {}\nPackage folders: {}",
+            "{HEADING}Installation:{HEADING:#} {}\n{HEADING}Action:{HEADING:#} {ACCENT}{}{ACCENT:#}\n{HEADING}Package folders:{HEADING:#} {ACCENT}{}{ACCENT:#}",
             p.installation.display(),
             p.action,
             p.folders.join(", ")
         );
         if let Some(archive) = &p.archive {
-            println!("Archive: {}", archive.display());
+            println!("{HEADING}Archive:{HEADING:#} {}", archive.display());
         }
         if let Some(digest) = &p.sha256 {
-            println!("SHA-256: {digest}");
+            println!("{MUTED}SHA-256: {digest}{MUTED:#}");
         }
         if let Some(tx) = &p.transaction {
-            println!("Transaction: {tx}");
+            println!("{HEADING}Transaction:{HEADING:#} {tx}");
         }
-        println!("{}", p.notice);
+        println!("{WARNING}{}{WARNING:#}", p.notice);
         if dry_run {
-            println!("Preview only: nothing changed.");
+            println!("{HEADING}Preview only:{HEADING:#} nothing changed.");
             return Ok(());
         }
     }
     if !wowza::interaction::confirm(
         &mut io::stdin().lock(),
-        &mut io::stdout(),
-        "Apply this change?",
+        &mut anstream::stdout(),
+        &format!("{HEADING}Apply this change?{HEADING:#}"),
         yes,
     )? {
-        println!("Cancelled.");
+        println!("{MUTED}Cancelled.{MUTED:#}");
         return Ok(());
     }
     let root = p.installation.clone();
@@ -147,32 +197,36 @@ fn apply(
         "remove" => "Removed",
         _ => "Recovered",
     };
-    println!("{verb} {}.", result.folders.join(", "));
+    println!("{SUCCESS}{verb} {}.{SUCCESS:#}", result.folders.join(", "));
     if let Some(path) = result.retained {
-        println!("Original files retained at {}.", path.display());
+        println!(
+            "{HEADING}Original files retained at{HEADING:#} {}.",
+            path.display()
+        );
     }
     println!(
-        "Inspect the result: {}",
+        "{HEADING}Inspect the result:{HEADING:#} {ACCENT}{}{ACCENT:#}",
         config::command(&root, &["status"])
     );
     Ok(())
 }
 
-fn status_label(status: manage::Status) -> &'static str {
-    match status {
-        manage::Status::Unmanaged => "unmanaged",
-        manage::Status::Managed => "managed",
-        manage::Status::Modified => "managed, modified",
-        manage::Status::Incomplete => "managed, incomplete or invalid record",
-    }
+fn status_label(status: manage::Status) -> String {
+    let (style, label) = match status {
+        manage::Status::Unmanaged => (MUTED, "unmanaged"),
+        manage::Status::Managed => (SUCCESS, "managed"),
+        manage::Status::Modified => (WARNING, "managed, modified"),
+        manage::Status::Incomplete => (ERROR, "managed, incomplete or invalid record"),
+    };
+    format!("{style}{label}{style:#}")
 }
 
 fn metadata(addon: &wowza::Addon, detailed: bool) {
     if addon.tocs.is_empty() {
-        println!("  No TOC found");
+        println!("  {WARNING}No TOC found{WARNING:#}");
     }
     for toc in &addon.tocs {
-        println!("  {}", toc.file);
+        println!("  {MUTED}{}{MUTED:#}", toc.file);
         let keys: &[&str] = if detailed {
             &["title", "version", "interface", "author", "notes"]
         } else {
@@ -180,7 +234,7 @@ fn metadata(addon: &wowza::Addon, detailed: bool) {
         };
         for key in keys {
             if let Some(value) = toc.metadata.get(*key) {
-                println!("    {key}: {value}");
+                println!("    {HEADING}{key}:{HEADING:#} {value}");
             }
         }
     }
@@ -188,7 +242,7 @@ fn metadata(addon: &wowza::Addon, detailed: bool) {
 
 fn show_inspection(report: &manage::Inspection, command: &Command) {
     println!(
-        "Installation: {}\nAddOns: {}",
+        "{HEADING}Installation:{HEADING:#} {}\n{HEADING}AddOns:{HEADING:#} {}",
         report.installation.display(),
         report.folder_count
     );
@@ -201,7 +255,11 @@ fn show_inspection(report: &manage::Inspection, command: &Command) {
                 .collect();
             rows.sort_by_key(|(a, _)| a.folder.to_lowercase());
             for (addon, status) in rows {
-                println!("\n{} [{}]", addon.folder, status_label(status));
+                println!(
+                    "\n{ACCENT}{}{ACCENT:#} [{}]",
+                    addon.folder,
+                    status_label(status)
+                );
                 metadata(addon, matches!(command, Command::Scan));
             }
         }
@@ -212,23 +270,26 @@ fn show_inspection(report: &manage::Inspection, command: &Command) {
                 .flat_map(|p| &p.addons)
                 .filter(|a| a.tocs.is_empty())
                 .count();
-            println!("AddOns folder is readable. {missing} folder(s) have no readable TOC file.");
+            let health = if missing == 0 { SUCCESS } else { WARNING };
+            println!(
+                "{SUCCESS}AddOns folder is readable.{SUCCESS:#} {health}{missing} folder(s) have no readable TOC file.{health:#}"
+            );
             for package in &report.packages {
                 for issue in &package.issues {
-                    println!("  {issue}");
+                    println!("  {WARNING}{issue}{WARNING:#}");
                 }
             }
         }
         _ => {
-            println!("Packages: {}", report.packages.len());
+            println!("{HEADING}Packages:{HEADING:#} {}", report.packages.len());
             for package in &report.packages {
                 println!(
-                    "\n{} [{}]",
+                    "\n{ACCENT}{}{ACCENT:#} [{}]",
                     package.folders.join(" + "),
                     status_label(package.status)
                 );
                 for issue in &package.issues {
-                    println!("  {issue}");
+                    println!("  {WARNING}{issue}{WARNING:#}");
                 }
                 for addon in &package.addons {
                     if matches!(command, Command::Status { verbose: true }) {
@@ -236,7 +297,7 @@ fn show_inspection(report: &manage::Inspection, command: &Command) {
                     } else if let Some(toc) = addon.tocs.first() {
                         if let Some(title) = toc.metadata.get("title") {
                             println!(
-                                "  {title} {}",
+                                "  {title} {MUTED}{}{MUTED:#}",
                                 toc.metadata
                                     .get("version")
                                     .map(String::as_str)
@@ -251,45 +312,73 @@ fn show_inspection(report: &manage::Inspection, command: &Command) {
     }
     for operation in &report.pending {
         println!(
-            "Interrupted {}: {} ({})",
+            "{WARNING}Interrupted {}: {} ({}){WARNING:#}",
             operation.action,
             operation.id,
             operation.folders.join(", ")
         );
         if let Some(issue) = &operation.issue {
-            println!("  Cannot validate recovery data: {issue}");
+            println!("  {ERROR}Cannot validate recovery data:{ERROR:#} {issue}");
         }
     }
     for action in &report.next_actions {
-        println!("Next: {action}");
+        println!("{HEADING}Next:{HEADING:#} {ACCENT}{action}{ACCENT:#}");
     }
-    println!("\nLocal metadata does not establish project identity or Forever compatibility.");
+    println!(
+        "\n{MUTED}Local metadata does not establish project identity or Forever compatibility.{MUTED:#}"
+    );
 }
 
 fn run(cli: Cli) -> Result<(), String> {
+    if cli.command.is_none() && cli.path.is_none() && !cli.json && !cli.dry_run {
+        println!(
+            "{HEADING}Manage your WoW Forever add-ons from downloaded ZIPs.{HEADING:#}\n\n\
+             {HEADING}Start with:{HEADING:#}\n  \
+             {ACCENT}wowza configure <installation>{ACCENT:#}  Remember your game installation\n  \
+             {ACCENT}wowza status{ACCENT:#}                    See installed add-ons and problems\n  \
+             {ACCENT}wowza search \"Questie\"{ACCENT:#}          Find an add-on on CurseForge\n  \
+             {ACCENT}wowza install <addon.zip>{ACCENT:#}       Preview and confirm an installation\n\n\
+             Use {ACCENT}wowza --help{ACCENT:#} for all commands."
+        );
+        return Ok(());
+    }
     let command = cli.command.unwrap_or(Command::Status { verbose: false });
     match command {
-        Command::Search { query, yes } => {
-            if cli.json || cli.dry_run {
-                return Err("Search opens a browser; --json and --dry-run apply to local inspection and package changes.".into());
+        Command::Search {
+            query,
+            url_only,
+            yes,
+        } => {
+            if cli.dry_run {
+                return Err("Search does not support --dry-run; use --url or --json to return a link without opening a browser.".into());
             }
+            let url = wowza::search_url(&query)?;
+            if url_only || cli.json {
+                return print_handoff(&url, "search", Some(&query), cli.json);
+            }
+            println!("{HEADING}CurseForge search{HEADING:#}");
             wowza::interaction::handoff(
                 &mut io::stdin().lock(),
                 &mut io::stdout(),
-                &wowza::search_url(&query)?,
+                &url,
                 yes,
                 true,
                 |url| open::that(url).map_err(|e| e.to_string()),
             )
         }
-        Command::Continue { url, yes } => {
-            if cli.json || cli.dry_run {
-                return Err("Continue opens a browser; --json and --dry-run apply to local inspection and package changes.".into());
+        Command::Continue { url, url_only, yes } => {
+            if cli.dry_run {
+                return Err("Continue does not support --dry-run; use --url or --json to return a link without opening a browser.".into());
             }
+            let url = wowza::project_url(&url)?;
+            if url_only || cli.json {
+                return print_handoff(&url, "continue", None, cli.json);
+            }
+            println!("{HEADING}CurseForge project or release{HEADING:#}");
             wowza::interaction::handoff(
                 &mut io::stdin().lock(),
                 &mut io::stdout(),
-                &wowza::project_url(&url)?,
+                &url,
                 yes,
                 false,
                 |url| open::that(url).map_err(|e| e.to_string()),
@@ -310,7 +399,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 json(&serde_json::json!({"installation": path, "saved": !cli.dry_run}))
             } else {
                 println!(
-                    "{} installation: {}",
+                    "{SUCCESS}{} installation:{SUCCESS:#} {}",
                     if cli.dry_run { "Validated" } else { "Saved" },
                     path.display()
                 );
@@ -354,18 +443,18 @@ fn run(cli: Cli) -> Result<(), String> {
                         return json(&pending);
                     }
                     if pending.is_empty() {
-                        println!("No interrupted Wowza operations found.");
+                        println!("{SUCCESS}No interrupted Wowza operations found.{SUCCESS:#}");
                     }
                     for p in pending {
                         println!(
-                            "{}: {} {}\n  {}",
+                            "{WARNING}{}: {} {}{WARNING:#}\n  {ACCENT}{}{ACCENT:#}",
                             p.id,
                             p.action,
                             p.folders.join(", "),
                             p.recovery_command
                         );
                         if let Some(issue) = p.issue {
-                            println!("  Cannot validate recovery data: {issue}");
+                            println!("  {ERROR}Cannot validate recovery data:{ERROR:#} {issue}");
                         }
                     }
                     Ok(())
@@ -389,22 +478,23 @@ fn run(cli: Cli) -> Result<(), String> {
                         )?;
                     } else {
                         println!(
-                            "Archive: {}\nUncompressed bytes: {}",
+                            "{HEADING}Archive:{HEADING:#} {}\n{HEADING}Uncompressed bytes:{HEADING:#} {}",
                             archive.display(),
                             preview.bytes
                         );
                         for (folder, count) in &preview.folders {
+                            let (style, availability) = if existing.contains(&folder.to_lowercase())
+                            {
+                                (ERROR, "CONFLICT: already exists")
+                            } else {
+                                (SUCCESS, "no existing folder")
+                            };
                             println!(
-                                "  {folder}: {count} files{}",
-                                if existing.contains(&folder.to_lowercase()) {
-                                    " [CONFLICT: already exists]"
-                                } else {
-                                    " [no existing folder]"
-                                }
+                                "  {ACCENT}{folder}{ACCENT:#}: {count} files {style}[{availability}]{style:#}"
                             );
                         }
                         println!(
-                            "Preview only: nothing installed. Verify the release is intended for Forever."
+                            "{HEADING}Preview only:{HEADING:#} nothing installed. {WARNING}Verify the release is intended for Forever.{WARNING:#}"
                         );
                     }
                     if !conflicts.is_empty() {
@@ -429,7 +519,7 @@ fn run(cli: Cli) -> Result<(), String> {
 
 pub fn main() {
     if let Err(error) = run(Cli::parse()) {
-        eprintln!("Error: {error}");
+        eprintln!("{ERROR}Error:{ERROR:#} {error}");
         std::process::exit(1);
     }
 }
