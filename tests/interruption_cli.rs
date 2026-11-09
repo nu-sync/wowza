@@ -1,4 +1,4 @@
-#![cfg(all(windows, feature = "test-hooks"))]
+#![cfg(feature = "test-hooks")]
 mod common;
 use common::{Installation, snapshot, success};
 use std::{fs, process::Command};
@@ -201,12 +201,7 @@ fn recovery_preserves_path_handles_ambiguity_and_rejects_stale_journals() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("Multiple"));
     assert_eq!(snapshot(first.root()), before);
     fs::remove_dir_all(other).unwrap();
-    let executable = env!("CARGO_BIN_EXE_wowza").replace('\'', "''");
-    let script = format!(
-        "function wowza {{ & '{executable}' @args }}\n{suggestion} --yes\nexit $LASTEXITCODE"
-    );
-    let output = Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+    let output = common::shell(&format!("{suggestion} --yes"))
         .env("WOWZA_FOREVER_PATH", second.root())
         .env("WOWZA_CONFIG_FILE", second.root().join("config.json"))
         .output()

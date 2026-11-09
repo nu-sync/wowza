@@ -38,8 +38,9 @@ pub fn success(output: Output) -> String {
     String::from_utf8(output.stdout).unwrap()
 }
 
+/// Redirects `link` to `target`: a junction on Windows, a symbolic link elsewhere.
 #[cfg(windows)]
-pub fn junction(link: &Path, target: &Path) {
+pub fn link(link: &Path, target: &Path) {
     let output = Command::new("cmd.exe")
         .args(["/D", "/C", "mklink", "/J"])
         .arg(link)
@@ -47,6 +48,43 @@ pub fn junction(link: &Path, target: &Path) {
         .output()
         .unwrap();
     success(output);
+}
+
+#[cfg(unix)]
+pub fn link(link: &Path, target: &Path) {
+    std::os::unix::fs::symlink(target, link).unwrap();
+}
+
+/// Removes a redirect made by [`link`] without touching its target.
+pub fn unlink(link: &Path) {
+    if cfg!(windows) {
+        fs::remove_dir(link).unwrap();
+    } else {
+        fs::remove_file(link).unwrap();
+    }
+}
+
+/// Runs a copied recovery command in the shell that `pending` writes it for,
+/// with `wowza` resolving to the binary under test.
+pub fn shell(command: &str) -> Command {
+    let executable = env!("CARGO_BIN_EXE_wowza");
+    if cfg!(windows) {
+        let script = format!(
+            "function wowza {{ & '{}' @args }}\n{command}\nexit $LASTEXITCODE",
+            executable.replace('\'', "''")
+        );
+        let mut shell = Command::new("powershell.exe");
+        shell.args(["-NoProfile", "-NonInteractive", "-Command", &script]);
+        shell
+    } else {
+        let script = format!(
+            "wowza() {{ '{}' \"$@\"; }}\n{command}",
+            executable.replace('\'', r"'\''")
+        );
+        let mut shell = Command::new("/bin/sh");
+        shell.args(["-c", &script]);
+        shell
+    }
 }
 
 pub fn snapshot(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {

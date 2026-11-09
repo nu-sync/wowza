@@ -1,5 +1,13 @@
 # Development decisions
 
+## 2026-11-08: macOS support
+
+Install, update, removal, and recovery previously refused to run off Windows because the no-overwrite folder move existed only as `MoveFileW`. macOS now uses `renamex_np` with `RENAME_EXCL`, which atomically fails with `EEXIST` instead of replacing a file or folder. Other Unix systems still refuse lifecycle changes. Saved settings default to `~/Library/Application Support/Wowza/config.json` and the installation to `/Applications/World of Warcraft/_forever_`. Copyable recovery and inspection commands use POSIX single-quote escaping off Windows and PowerShell quoting on Windows.
+
+Integration tests that were Windows-only now run on both platforms. Redirection tests use a junction on Windows and a symbolic link on macOS, and both are refused. The recovery-command test runs the printed command through PowerShell on Windows and `/bin/sh` on macOS. A new unit test checks that the platform move never replaces an existing file or folder. CI runs `scripts/check.ps1` on `windows-2025` and `macos-15`; packaging remains Windows-only.
+
+On macOS 26 (Apple silicon), Rust 1.95: formatting and all-feature Clippy passed, with 47 default tests and 52 interruption-enabled tests. The release build configured, installed, updated, retained the original, reported status for, and removed a two-version add-on in a temporary installation whose path contains a space and an apostrophe, preserving `WTF` settings. A printed inspection command ran unchanged in zsh. `status` read the real, empty macOS installation without writing. The Windows leg was not run locally and depends on CI. Real add-on ZIPs on macOS, in-game loading, and power-loss durability remain unverified. The TLA+ models describe move semantics abstractly and needed no changes.
+
 ## 2026-11-06: Fast startup guidance
 
 Bare `wowza` previously performed the same installation inspection as `status`, unlike `wowmc`, which prints a getting-started guide. It now prints a short guide before resolving configuration or reading installation files. `wowza status` retains the full inspection, including managed-file integrity checks. Option-only invocations with `--path`, `--json`, or `--dry-run` keep their existing status behavior. Explicit help and version already returned before inspection and remain unchanged.

@@ -1,6 +1,6 @@
 # Wowza
 
-An experimental Windows CLI for managing World of Warcraft: Forever add-ons from downloaded ZIPs. Preview changes, manage related folders together, and recover interrupted operations. No API key is needed.
+An experimental Windows and macOS CLI for managing World of Warcraft: Forever add-ons from downloaded ZIPs. Preview changes, manage related folders together, and recover interrupted operations. No API key is needed.
 
 ## Set up once
 
@@ -12,6 +12,8 @@ cd wowza
 cargo install --locked --path .
 wowza configure 'C:\battlenet\World of Warcraft\_forever_'
 ```
+
+On macOS, run the same commands in Terminal and configure `'/Applications/World of Warcraft/_forever_'`.
 
 Use your game installation root, not its `Interface\AddOns` folder. Wowza remembers it. Use `--path '<installation>'` to override it for one command.
 

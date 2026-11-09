@@ -171,9 +171,32 @@ fn move_no_replace(from: &Path, to: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+fn move_no_replace(from: &Path, to: &Path) -> Result<(), String> {
+    use std::{ffi::CString, os::unix::ffi::OsStrExt};
+    const RENAME_EXCL: u32 = 0x4;
+    unsafe extern "C" {
+        fn renamex_np(
+            from: *const std::ffi::c_char,
+            to: *const std::ffi::c_char,
+            flags: u32,
+        ) -> i32;
+    }
+    let path = |p: &Path| {
+        CString::new(p.as_os_str().as_bytes()).map_err(|_| format!("Invalid path: {}", p.display()))
+    };
+    let (from, to) = (path(from)?, path(to)?);
+    if unsafe { renamex_np(from.as_ptr(), to.as_ptr(), RENAME_EXCL) } != 0 {
+        return Err(format!(
+            "Cannot move folder without replacing an existing entry: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    Ok(())
+}
+#[cfg(not(any(windows, target_os = "macos")))]
 fn move_no_replace(_: &Path, _: &Path) -> Result<(), String> {
-    Err("Install and remove currently support Windows only.".into())
+    Err("Install and remove currently support Windows and macOS only.".into())
 }
 fn read_marker(folder: &Path) -> Result<String, String> {
     normal_dir(folder)?;
@@ -743,7 +766,7 @@ fn package_hash(package: &Package) -> Result<String, String> {
     let bytes = serde_json::to_vec(package).map_err(|e| e.to_string())?;
     Ok(format!("{:x}", Sha256::digest(bytes)))
 }
-#[cfg(all(test, windows))]
+#[cfg(test)]
 fn status(root: &Path, folder: &str) -> Result<Status, String> {
     inspect_installation(root)?
         .packages
@@ -752,9 +775,30 @@ fn status(root: &Path, folder: &str) -> Result<Status, String> {
         .map(|p| p.status)
         .ok_or_else(|| "Add-on folder not found.".into())
 }
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn move_no_replace_moves_but_never_overwrites() {
+        let root = tempfile::tempdir().unwrap();
+        let (dir, file) = (root.path().join("dir"), root.path().join("file"));
+        fs::create_dir(&dir).unwrap();
+        fs::write(dir.join("keep"), "folder").unwrap();
+        fs::write(&file, "file").unwrap();
+        for (from, to) in [(&dir, &file), (&file, &dir)] {
+            assert!(move_no_replace(from, to).is_err());
+        }
+        let other = root.path().join("other");
+        fs::create_dir(&other).unwrap();
+        assert!(move_no_replace(&dir, &other).is_err());
+        assert_eq!(fs::read_to_string(dir.join("keep")).unwrap(), "folder");
+        assert_eq!(fs::read_to_string(&file).unwrap(), "file");
+        assert!(fs::read_dir(&other).unwrap().next().is_none());
+        let moved = root.path().join("moved");
+        move_no_replace(&dir, &moved).unwrap();
+        assert!(!dir.exists());
+        assert_eq!(fs::read_to_string(moved.join("keep")).unwrap(), "folder");
+    }
     fn fixture() -> (tempfile::TempDir, Package, String) {
         let root = tempfile::tempdir().unwrap();
         fs::create_dir_all(crate::addons_path(root.path())).unwrap();
@@ -882,7 +926,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod update_tests {
     use super::*;
     fn hash(s: &str) -> String {

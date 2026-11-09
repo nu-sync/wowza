@@ -60,7 +60,7 @@ enum Command {
     /// Inspect a downloaded ZIP and check local folder conflicts
     #[command(visible_alias = "inspect")]
     InspectArchive { archive: PathBuf },
-    /// Install a locally supplied ZIP after preview and confirmation (Windows)
+    /// Install a locally supplied ZIP after preview and confirmation
     #[command(visible_alias = "install")]
     InstallArchive {
         archive: PathBuf,

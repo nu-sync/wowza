@@ -1,4 +1,3 @@
-#![cfg(windows)]
 mod common;
 use common::{Installation, archive, snapshot, success};
 use std::{fs, process::Command};
@@ -14,7 +13,7 @@ fn redirected_installation(preview_first: bool) {
         if component == "Interface" {
             fs::remove_dir(selected.root().join("Interface")).unwrap();
         }
-        common::junction(
+        common::link(
             &selected.root().join(component),
             &other.root().join(component),
         );
@@ -28,7 +27,7 @@ fn redirected_installation(preview_first: bool) {
             "{component} redirected a change into another installation"
         );
         assert_eq!(snapshot(other.root()), before);
-        fs::remove_dir(selected.root().join(component)).unwrap();
+        common::unlink(&selected.root().join(component));
     }
 }
 
