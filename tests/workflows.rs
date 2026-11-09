@@ -172,11 +172,8 @@ fn prepared_changes_reject_stale_archives_packages_and_new_conflicts() {
     let remove = prepare_remove(game.root(), "A").unwrap();
     let next = game.zip("next.zip", &[("A/A.toc", "next")]);
     execute(prepare_update(game.root(), "A", &next).unwrap()).unwrap();
-    assert!(
-        execute(remove)
-            .unwrap_err()
-            .contains("changed after preview")
-    );
+    let err = execute(remove).unwrap_err();
+    assert!(err.contains("changed after preview"), "{err}");
     let update = prepare_update(game.root(), "A", &zip).unwrap();
     fs::write(game.addons().join("A/A.toc"), "player edit").unwrap();
     assert!(execute(update).is_err());

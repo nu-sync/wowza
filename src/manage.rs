@@ -150,9 +150,24 @@ fn acquire_lock(root: &Path) -> Result<fs::File, String> {
         .truncate(false)
         .open(path)
         .map_err(|e| format!("Cannot open Wowza lock: {e}"))?;
-    f.try_lock()
-        .map_err(|e| format!("Cannot acquire Wowza lock; another operation may be running: {e}"))?;
-    Ok(f)
+    // On Unix the lock belongs to the open file, which a child process started
+    // by another thread briefly shares until it executes its program. Retrying
+    // for about a second outlasts that window but not a real operation.
+    let mut attempts = 50;
+    loop {
+        match f.try_lock() {
+            Ok(()) => return Ok(f),
+            Err(fs::TryLockError::WouldBlock) if attempts > 1 => {
+                attempts -= 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(e) => {
+                return Err(format!(
+                    "Cannot acquire Wowza lock; another operation may be running: {e}"
+                ));
+            }
+        }
+    }
 }
 #[cfg(windows)]
 fn move_no_replace(from: &Path, to: &Path) -> Result<(), String> {
