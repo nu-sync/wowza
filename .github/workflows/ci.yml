@@ -1,4 +1,4 @@
-name: Windows checks
+name: Checks
 
 on:
   push:
@@ -10,8 +10,12 @@ permissions:
 
 jobs:
   check:
-    name: Format, lint, test, and build
-    runs-on: windows-2025
+    name: Format, lint, test, and build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
       RUSTUP_TOOLCHAIN: stable
@@ -29,8 +33,10 @@ jobs:
       - name: Check repository
         run: .\scripts\check.ps1
       - name: Package Windows build
+        if: runner.os == 'Windows'
         run: .\scripts\package-release.ps1
       - name: Upload Windows test build
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wowza-windows-x86_64

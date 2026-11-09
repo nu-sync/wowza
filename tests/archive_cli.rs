@@ -59,7 +59,6 @@ fn rejects_unsafe_and_invalid_archives() {
     assert!(!run(temp.path(), &zip).status.success());
 }
 
-#[cfg(windows)]
 #[test]
 fn install_remove_and_refuse_modified_or_unmanaged_folders() {
     let temp = tempfile::tempdir().unwrap();
@@ -122,7 +121,6 @@ fn install_remove_and_refuse_modified_or_unmanaged_folders() {
     );
 }
 
-#[cfg(windows)]
 #[test]
 fn cancellation_and_multifolder_packages() {
     use std::process::Stdio;
@@ -171,7 +169,6 @@ fn cancellation_and_multifolder_packages() {
     assert!(!addons.join("B").exists());
 }
 
-#[cfg(windows)]
 #[test]
 fn multifolder_conflict_and_modified_removal_preserve_all_folders() {
     let temp = tempfile::tempdir().unwrap();
@@ -209,7 +206,6 @@ fn multifolder_conflict_and_modified_removal_preserve_all_folders() {
     assert!(String::from_utf8_lossy(&doctor.stdout).contains("contents changed"));
 }
 
-#[cfg(windows)]
 #[test]
 fn rejects_traversal_in_untrusted_ownership_and_journal() {
     let temp = tempfile::tempdir().unwrap();
@@ -241,7 +237,6 @@ fn rejects_traversal_in_untrusted_ownership_and_journal() {
     assert!(addons.join("A").exists());
 }
 
-#[cfg(windows)]
 #[test]
 fn updates_package_retains_backup_and_refuses_unsafe_changes() {
     let tmp = tempfile::tempdir().unwrap();
@@ -296,7 +291,6 @@ fn updates_package_retains_backup_and_refuses_unsafe_changes() {
     assert!(!addons.join("C").exists());
 }
 
-#[cfg(windows)]
 #[test]
 fn update_rejects_a_stale_confirmed_package() {
     let tmp = tempfile::tempdir().unwrap();
@@ -318,7 +312,6 @@ fn update_rejects_a_stale_confirmed_package() {
     );
 }
 
-#[cfg(windows)]
 #[test]
 fn cancelling_update_leaves_installed_contents_untouched() {
     use std::process::Stdio;

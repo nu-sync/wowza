@@ -5,6 +5,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(target_os = "macos")]
+const DEFAULT_ROOT: &str = "/Applications/World of Warcraft/_forever_";
+#[cfg(not(target_os = "macos"))]
 const DEFAULT_ROOT: &str = r"C:\battlenet\World of Warcraft\_forever_";
 
 #[derive(Serialize, Deserialize)]
@@ -16,9 +19,26 @@ pub fn file() -> Result<PathBuf, String> {
     if let Some(path) = std::env::var_os("WOWZA_CONFIG_FILE") {
         return Ok(path.into());
     }
-    std::env::var_os("APPDATA")
-        .map(|path| PathBuf::from(path).join("Wowza/config.json"))
-        .ok_or_else(|| "Set WOWZA_CONFIG_FILE to choose a configuration file.".into())
+    default_file().ok_or_else(|| "Set WOWZA_CONFIG_FILE to choose a configuration file.".into())
+}
+
+#[cfg(windows)]
+fn default_file() -> Option<PathBuf> {
+    std::env::var_os("APPDATA").map(|path| PathBuf::from(path).join("Wowza/config.json"))
+}
+
+#[cfg(target_os = "macos")]
+fn default_file() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .map(|home| PathBuf::from(home).join("Library/Application Support/Wowza/config.json"))
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn default_file() -> Option<PathBuf> {
+    std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+        .map(|dir| dir.join("wowza/config.json"))
 }
 
 pub fn validate(path: &Path) -> Result<PathBuf, String> {
@@ -83,9 +103,13 @@ pub fn save(root: &Path) -> Result<PathBuf, String> {
     Ok(installation)
 }
 
-/// A copyable PowerShell command; single quotes protect spaces and metacharacters.
+/// A copyable shell command (PowerShell on Windows, POSIX shell elsewhere);
+/// single quotes protect spaces and metacharacters.
 pub fn command(root: &Path, args: &[&str]) -> String {
+    #[cfg(windows)]
     let quote = |text: &str| format!("'{}'", text.replace('\'', "''"));
+    #[cfg(not(windows))]
+    let quote = |text: &str| format!("'{}'", text.replace('\'', r"'\''"));
     let mut parts = vec![
         "wowza".to_string(),
         "--path".into(),
