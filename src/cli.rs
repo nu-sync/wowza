@@ -294,10 +294,11 @@ fn show_inspection(report: &manage::Inspection, command: &Command) {
                 for addon in &package.addons {
                     if matches!(command, Command::Status { verbose: true }) {
                         metadata(addon, true);
-                    } else if let Some(toc) = addon.tocs.first() {
+                    } else if let Some(toc) = addon.primary_toc() {
                         if let Some(title) = toc.metadata.get("title") {
                             println!(
-                                "  {title} {MUTED}{}{MUTED:#}",
+                                "  {} {MUTED}{}{MUTED:#}",
+                                wowza::strip_ui_escapes(title),
                                 toc.metadata
                                     .get("version")
                                     .map(String::as_str)
