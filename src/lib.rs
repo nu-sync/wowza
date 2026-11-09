@@ -16,6 +16,52 @@ pub struct Toc {
     pub metadata: BTreeMap<String, String>,
 }
 
+impl Addon {
+    /// The TOC the Forever client loads: `<Folder>_Forever.toc`, then `<Folder>.toc`.
+    pub fn primary_toc(&self) -> Option<&Toc> {
+        let named = |suffix: &str| {
+            let name = format!("{}{suffix}.toc", self.folder);
+            self.tocs
+                .iter()
+                .find(|t| t.file.eq_ignore_ascii_case(&name))
+        };
+        named("_Forever")
+            .or_else(|| named(""))
+            .or_else(|| self.tocs.first())
+    }
+}
+
+/// Remove WoW UI escape sequences such as `|cffRRGGBB` and `|r` from display text.
+pub fn strip_ui_escapes(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '|' {
+            out.push(c);
+            continue;
+        }
+        match chars.peek() {
+            Some('c' | 'C') => {
+                chars.next();
+                for _ in 0..8 {
+                    if chars.next_if(char::is_ascii_hexdigit).is_none() {
+                        break;
+                    }
+                }
+            }
+            Some('r' | 'R') => {
+                chars.next();
+            }
+            Some('|') => {
+                chars.next();
+                out.push('|');
+            }
+            _ => out.push('|'),
+        }
+    }
+    out.trim().to_string()
+}
+
 pub fn parse_toc(text: &str) -> BTreeMap<String, String> {
     let mut fields = BTreeMap::new();
     for line in text.lines() {
@@ -130,6 +176,39 @@ mod tests {
             assert!(project_url(url).is_err(), "{url}");
         }
     }
+    #[test]
+    fn primary_toc_prefers_forever_then_folder_name() {
+        let toc = |file: &str| Toc {
+            file: file.into(),
+            metadata: BTreeMap::new(),
+        };
+        let mut addon = Addon {
+            folder: "Questie".into(),
+            tocs: vec![
+                toc("Questie.toc"),
+                toc("Questie_Classic.toc"),
+                toc("questie_forever.TOC"),
+            ],
+        };
+        assert_eq!(addon.primary_toc().unwrap().file, "questie_forever.TOC");
+        addon.tocs.pop();
+        assert_eq!(addon.primary_toc().unwrap().file, "Questie.toc");
+        addon.tocs.remove(0);
+        assert_eq!(addon.primary_toc().unwrap().file, "Questie_Classic.toc");
+        addon.tocs.clear();
+        assert!(addon.primary_toc().is_none());
+    }
+
+    #[test]
+    fn strips_ui_escapes() {
+        assert_eq!(strip_ui_escapes("|cffe6b85cOpen|rMap"), "OpenMap");
+        assert_eq!(
+            strip_ui_escapes("Questie|cFFFF0000 game client not supported|r "),
+            "Questie game client not supported"
+        );
+        assert_eq!(strip_ui_escapes("A || B |x"), "A | B |x");
+    }
+
     #[test]
     fn scans_folders_and_multiple_tocs() {
         let tmp = tempfile::tempdir().unwrap();

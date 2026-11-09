@@ -42,7 +42,7 @@ Settings live at `%APPDATA%\Wowza\config.json` on Windows and `~/Library/Applica
 
 `wowza` shows a short getting-started guide without reading configuration or scanning the installation. `wowza --help` lists all commands and options.
 
-`wowza status` shows packages, problems, and suggested actions. `status --verbose` includes TOC metadata. Consistent ownership records group several folders into one package; conflicting records remain separate. For existing scripts, supplying only global options (`--path`, `--json`, or `--dry-run`) still runs status; prefer an explicit `status` command in new scripts.
+`wowza status` shows packages, problems, and suggested actions. Each package line shows the title and version from `<Folder>_Forever.toc`, falling back to `<Folder>.toc` and then the first TOC, with WoW color codes removed. `status --verbose` includes all TOC metadata. Consistent ownership records group several folders into one package; conflicting records remain separate. For existing scripts, supplying only global options (`--path`, `--json`, or `--dry-run`) still runs status; prefer an explicit `status` command in new scripts.
 
 `list` and `scan` retain their folder-oriented display. `doctor` reports missing TOCs, changed packages, and pending operations. These commands share one inspection result and do not modify the installation. TOCs are read as UTF-8 with replacement for invalid bytes.
 
